@@ -7,9 +7,11 @@ import {
   SpCurrentTaskIdSchema,
   SpEnvelopeSchema,
   SpHealthSchema,
+  SpProjectSchema,
   SpTaskSchema,
   type SpCurrentTaskId,
   type SpHealth,
+  type SpProject,
   type SpTask,
 } from './types.js';
 
@@ -27,6 +29,8 @@ export interface CreateTaskInput {
   readonly title: string;
   readonly notes?: string;
   readonly projectId?: string;
+  readonly tagIds?: readonly string[];
+  readonly dueDay?: string | null;
 }
 
 export interface UpdateTaskInput {
@@ -63,6 +67,9 @@ const parseResponseJson = async (response: Response): Promise<unknown> => {
 
 const taskIdPath = (taskId: string, suffix = '') => `/tasks/${encodeURIComponent(taskId)}${suffix}`;
 
+const withTitleQuery = (path: string, query?: string) =>
+  query ? `${path}?${new URLSearchParams({ query }).toString()}` : path;
+
 export class SuperProductivityClient {
   constructor(
     private readonly config: AppConfig,
@@ -84,6 +91,10 @@ export class SuperProductivityClient {
     return this.request(`/tasks?${params.toString()}`, z.array(SpTaskSchema));
   }
 
+  async listProjects(query?: string): Promise<SpProject[]> {
+    return this.request(withTitleQuery('/projects', query), z.array(SpProjectSchema));
+  }
+
   async getTask(taskId: string): Promise<SpTask> {
     return this.request(taskIdPath(taskId), SpTaskSchema);
   }
@@ -91,10 +102,15 @@ export class SuperProductivityClient {
   async createTask(input: CreateTaskInput): Promise<SpTask> {
     return this.request('/tasks', SpTaskSchema, {
       method: 'POST',
+      // Builds that know isIgnoreShortSyntax store the title literally; older
+      // builds drop the unknown flag and still parse short syntax out of it.
       body: {
         title: input.title,
         ...(input.notes ? { notes: input.notes } : {}),
         ...(input.projectId ? { projectId: input.projectId } : {}),
+        ...(input.tagIds ? { tagIds: input.tagIds } : {}),
+        ...(input.dueDay !== undefined ? { dueDay: input.dueDay } : {}),
+        isIgnoreShortSyntax: true,
       },
     });
   }
