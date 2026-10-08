@@ -7,6 +7,8 @@ export const testConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   apiToken: 'test-token',
   apiTimeoutMs: 1_000,
   allowNonLoopbackUrl: false,
+  literalTitles: false,
+  enableDelete: false,
   logLevel: 'error',
   ...overrides,
 });

@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Added
+
+- Added read-only `list_projects` and `list_tags` tools so clients can resolve names to IDs.
+- Added a `tagId` filter to `search_tasks`.
+- Added a read-only `get_task` tool that returns one task with its notes and, optionally, its subtasks.
+- Task summaries now include `tagIds`, `deadlineDay`, and `deadlineWithTime`.
+- Added a `create_task` tool: Inbox by default, optional project and tags by ID or exact name,
+  due day or time, estimate, notes, and subtasks.
+  Like `ensure_github_issue_task`, it rejects titles containing short syntax.
+- Added an `update_task` tool that changes title, notes, done state, project, tags, due date, or
+  estimate of one task; omitted fields stay unchanged.
+- Added `archive_task` and `restore_task`. Subtasks cannot be archived on their own, because
+  Super Productivity 19.0.x reports success without archiving them.
+- Added an opt-in `delete_task` tool (`SP_ENABLE_DELETE=true`) that permanently deletes one task. It
+  requires `confirmTitle` to match and refuses tasks with subtasks unless `includeSubTasks` is true.
+- `delete_task` asks the user to confirm each deletion through MCP elicitation and is only offered
+  to clients that support it.
+
+### Fixed
+
+- `ensure_github_issue_task` no longer inherits the project, tag, or Today due date of the view open
+  in the app; new issue tasks go to the given project or the Inbox.
+- `ensure_github_issue_task` rejects a `projectId` that does not exist or is archived with
+  `PROJECT_NOT_FOUND` instead of creating a task that shows in no project list.
+- The default title of new issue tasks is now `GitHub issue 123 — owner/repo`; the old
+  `GitHub #123 — owner/repo` made Super Productivity 19.0.x ask to create a tag named `123`.
+- Custom titles containing short syntax are rejected instead of being parsed by Super Productivity.
+  Set `SP_LITERAL_TITLES=true` on builds that store titles literally.
+
 ## [0.1.5] - 2026-08-03
 
 ### Fixed

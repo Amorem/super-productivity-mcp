@@ -9,6 +9,14 @@ export interface AppConfig {
   readonly apiToken?: string;
   readonly apiTimeoutMs: number;
   readonly allowNonLoopbackUrl: boolean;
+  /**
+   * True when the Super Productivity build honours `isIgnoreShortSyntax` and
+   * stores new titles literally. Off by default: 19.0.x and older parse short
+   * syntax out of new titles, so such titles are rejected instead.
+   */
+  readonly literalTitles: boolean;
+  /** Registers the permanent delete_task tool. Off by default. */
+  readonly enableDelete: boolean;
   readonly logLevel: LogLevel;
 }
 
@@ -81,6 +89,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): AppConfig => {
     ...(token ? { apiToken: token } : {}),
     apiTimeoutMs: parseTimeout(env.SP_API_TIMEOUT_MS),
     allowNonLoopbackUrl,
+    literalTitles: parseBoolean('SP_LITERAL_TITLES', env.SP_LITERAL_TITLES, false),
+    enableDelete: parseBoolean('SP_ENABLE_DELETE', env.SP_ENABLE_DELETE, false),
     logLevel: parseLogLevel(env.SP_LOG_LEVEL),
   };
 };

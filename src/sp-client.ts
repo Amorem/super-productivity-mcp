@@ -7,9 +7,13 @@ import {
   SpCurrentTaskIdSchema,
   SpEnvelopeSchema,
   SpHealthSchema,
+  SpProjectSchema,
+  SpTagSchema,
   SpTaskSchema,
   type SpCurrentTaskId,
   type SpHealth,
+  type SpProject,
+  type SpTag,
   type SpTask,
 } from './types.js';
 
@@ -27,12 +31,22 @@ export interface CreateTaskInput {
   readonly title: string;
   readonly notes?: string;
   readonly projectId?: string;
+  readonly tagIds?: readonly string[];
+  readonly parentId?: string;
+  readonly dueDay?: string | null;
+  readonly dueWithTime?: number | null;
+  readonly timeEstimate?: number;
 }
 
 export interface UpdateTaskInput {
+  readonly title?: string;
+  readonly notes?: string;
   readonly isDone?: boolean;
+  readonly projectId?: string;
+  readonly tagIds?: readonly string[];
   readonly dueDay?: string | null;
   readonly dueWithTime?: number | null;
+  readonly timeEstimate?: number;
 }
 
 type FetchLike = typeof fetch;
@@ -63,6 +77,9 @@ const parseResponseJson = async (response: Response): Promise<unknown> => {
 
 const taskIdPath = (taskId: string, suffix = '') => `/tasks/${encodeURIComponent(taskId)}${suffix}`;
 
+const withTitleQuery = (path: string, query?: string) =>
+  query ? `${path}?${new URLSearchParams({ query }).toString()}` : path;
+
 export class SuperProductivityClient {
   constructor(
     private readonly config: AppConfig,
@@ -84,6 +101,14 @@ export class SuperProductivityClient {
     return this.request(`/tasks?${params.toString()}`, z.array(SpTaskSchema));
   }
 
+  async listProjects(query?: string): Promise<SpProject[]> {
+    return this.request(withTitleQuery('/projects', query), z.array(SpProjectSchema));
+  }
+
+  async listTags(query?: string): Promise<SpTag[]> {
+    return this.request(withTitleQuery('/tags', query), z.array(SpTagSchema));
+  }
+
   async getTask(taskId: string): Promise<SpTask> {
     return this.request(taskIdPath(taskId), SpTaskSchema);
   }
@@ -91,19 +116,42 @@ export class SuperProductivityClient {
   async createTask(input: CreateTaskInput): Promise<SpTask> {
     return this.request('/tasks', SpTaskSchema, {
       method: 'POST',
-      body: {
-        title: input.title,
-        ...(input.notes ? { notes: input.notes } : {}),
-        ...(input.projectId ? { projectId: input.projectId } : {}),
-      },
+      // Builds that know isIgnoreShortSyntax store the title literally; older
+      // builds drop the unknown flag and still parse short syntax out of it.
+      body: { ...input, isIgnoreShortSyntax: true },
     });
   }
 
   async updateTask(taskId: string, input: UpdateTaskInput): Promise<SpTask> {
     return this.request(taskIdPath(taskId), SpTaskSchema, {
       method: 'PATCH',
-      body: input,
+      // Builds that know isIgnoreShortSyntax store an edited title literally.
+      body: input.title === undefined ? input : { ...input, isIgnoreShortSyntax: true },
     });
+  }
+
+  async deleteTask(taskId: string): Promise<{ deleted: boolean; id: string }> {
+    return this.request(
+      taskIdPath(taskId),
+      z.object({ deleted: z.boolean(), id: z.string() }).passthrough(),
+      { method: 'DELETE' },
+    );
+  }
+
+  async archiveTask(taskId: string): Promise<{ id: string; archived: boolean }> {
+    return this.request(
+      taskIdPath(taskId, '/archive'),
+      z.object({ id: z.string(), archived: z.boolean() }).passthrough(),
+      { method: 'POST' },
+    );
+  }
+
+  async restoreTask(taskId: string): Promise<SpTask | null> {
+    return this.request(
+      taskIdPath(taskId, '/restore'),
+      z.union([SpTaskSchema, z.null(), z.undefined()]).transform((task) => task ?? null),
+      { method: 'POST' },
+    );
   }
 
   async startTask(taskId: string): Promise<SpCurrentTaskId> {
@@ -122,7 +170,7 @@ export class SuperProductivityClient {
     path: string,
     schema: z.ZodType<T>,
     options: {
-      readonly method?: 'GET' | 'POST' | 'PATCH';
+      readonly method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
       readonly body?: unknown;
       readonly requiresAuth?: boolean;
     } = {},

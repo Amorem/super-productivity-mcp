@@ -18,6 +18,8 @@ export const SpTaskSchema = z
     notes: nullableString,
     dueDay: nullableString,
     dueWithTime: nullableNumber,
+    deadlineDay: nullableString,
+    deadlineWithTime: nullableNumber,
     timeEstimate: z.number().finite().optional(),
     timeSpent: z.number().finite().optional(),
     parentId: nullableString,
@@ -29,6 +31,25 @@ export const SpTaskSchema = z
   .passthrough();
 
 export type SpTask = z.infer<typeof SpTaskSchema>;
+
+export const SpProjectSchema = z
+  .object({
+    id: z.string().min(1),
+    title: z.string(),
+    isArchived: z.boolean().optional(),
+  })
+  .passthrough();
+
+export type SpProject = z.infer<typeof SpProjectSchema>;
+
+export const SpTagSchema = z
+  .object({
+    id: z.string().min(1),
+    title: z.string(),
+  })
+  .passthrough();
+
+export type SpTag = z.infer<typeof SpTagSchema>;
 
 export const SpHealthSchema = z
   .object({
